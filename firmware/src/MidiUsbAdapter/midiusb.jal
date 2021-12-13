@@ -1,0 +1,59 @@
+-- ----------------------------------------------------------------------------
+-- Title: MIDI-USB Adapter
+-- http://www.robsonmartins.com/eletr/midiusb/
+--
+-- Author: Robson Martins  
+-- http://www.robsonmartins.com
+--
+-- ----------------------------------------------------------------------------
+
+include usb_defs
+-- defines a custom product string
+const byte USB_STRING2[34] = 
+{
+	34,	-- bLength
+	USB_DT_STRING,	-- bDescriptorType
+	"U", 0x00, 
+	"S", 0x00, 
+	"B", 0x00, 
+	"-", 0x00, 
+	"M", 0x00, 
+	"I", 0x00, 
+	"D", 0x00, 
+	"I", 0x00, 
+	" ", 0x00, 
+	"A", 0x00, 
+	"d", 0x00, 
+	"a", 0x00, 
+	"p", 0x00, 
+	"t", 0x00, 
+	"e", 0x00, 
+	"r", 0x00 
+}
+
+-- ----------------------------------------------------------------------------
+-- setup USB-MIDI
+include usb_midi
+usb_midi_init()
+
+-- ----------------------------------------------------------------------------
+-- procedures and functions
+-- ----------------------------------------------------------------------------
+
+-- Keeps the USB communcation alive. 
+procedure usbMidiFlush() is
+  usb_midi_flush()
+end procedure
+
+-- Returns true if a byte was received from USB MIDI,
+-- otherwise returns false.
+-- @param[out] data Received data
+function usbMidiReadByte(byte out data) return bit is
+  return usb_midi_parsed_read(data)
+end function
+
+-- Writes a byte to USB MIDI, blocking.
+-- @param[in] data Data to sent
+procedure usbMidiWriteByte(byte in data) is
+  usb_midi_parsed_write(data)
+end procedure

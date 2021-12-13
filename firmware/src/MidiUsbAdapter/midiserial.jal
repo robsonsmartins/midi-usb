@@ -1,0 +1,58 @@
+-- ----------------------------------------------------------------------------
+-- Title: MIDI-USB Adapter
+-- http://www.robsonmartins.com/eletr/midiusb/
+--
+-- Author: Robson Martins  
+-- http://www.robsonmartins.com
+--
+-- ----------------------------------------------------------------------------
+-- variables
+var bit led_midi_out_req = OFF
+var bit led_midi_in_req  = OFF
+
+-- ----------------------------------------------------------------------------
+-- setup uart hardware
+const serial_hw_baudrate = 31_250
+include serial_hardware
+serial_hw_init()
+
+-- ----------------------------------------------------------------------------
+-- procedures and functions
+-- ----------------------------------------------------------------------------
+
+-- Returns true if a byte was received from serial port,
+-- otherwise returns false.
+-- @param[out] data Received data
+function serialReadByte(byte out data) return bit is
+  var bit result
+  result = serial_hw_read(data)
+  if (result) then
+    led_midi_in_req = ON
+    led_midi_in     = ON
+  end if
+  return result
+end function
+
+-- Writes a byte to serial port, blocking.
+-- @param[in] data Data to sent
+procedure serialWriteByte(byte in data) is
+  serial_hw_write(data)
+  led_midi_out_req = ON
+  led_midi_out     = ON
+end procedure
+
+-- Refreshes the leds status.
+procedure serialRefreshLeds() is
+  if (!led_midi_out_req) then
+    led_midi_out = OFF
+  else
+    led_midi_out = ON
+    led_midi_out_req = OFF
+  end if
+  if (!led_midi_in_req) then
+    led_midi_in = OFF
+  else
+    led_midi_in = ON
+    led_midi_in_req = OFF
+  end if
+end procedure

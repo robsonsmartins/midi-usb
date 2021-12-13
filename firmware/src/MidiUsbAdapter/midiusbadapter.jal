@@ -1,0 +1,111 @@
+-- ----------------------------------------------------------------------------
+-- Title: MIDI-USB Adapter
+-- http://www.robsonmartins.com/eletr/midiusb/
+--
+-- Author: Robson Martins  
+-- http://www.robsonmartins.com
+--
+-- JALv2 Compiler: 2.4o
+--
+-- Description: Firmware do Adaptador MIDI-USB
+--
+-- Sources:
+-- 	 midiusbadapter.jal : main program
+--   midiserial.jal     : uart routines
+--   midiusb.jal        : usb-midi routines
+--   usb_midi.jal       : usb-midi jal based library
+--
+-- Notes:
+--  - File creation date/time: Fri May 25 23:59:22 BRT 2012.
+-- ----------------------------------------------------------------------------
+-- don't remove this line! (needed for jal eclipse plugin)
+--;@main
+-- ----------------------------------------------------------------------------
+include 18f13k50                 -- target PICmicro
+-- ----------------------------------------------------------------------------
+-- Resonator or crystal connected to pins OSC1 and OSC2.
+pragma target clock 48_000_000   -- oscillator frequency
+-- ----------------------------------------------------------------------------
+-- configuration memory settings (fuses)
+pragma target CPUDIV   P1        -- cpu system clock (no divide)
+pragma target USBDIV   P1        -- usb clock (no divide)
+pragma target OSC      HS        -- HS crystal or resonator
+pragma target PLLEN    P4        -- oscillator multiplied by 4 (pll enabled)
+pragma target FCMEN    DISABLED  -- Fail-safe clock monitor
+pragma target IESO     DISABLED  -- Internal-external switchover
+pragma target PWRTE    DISABLED  -- power up timer
+pragma target BROWNOUT DISABLED  -- no brownout detection
+pragma target WDT      DISABLED  -- no watchdog
+pragma target MCLR     EXTERNAL  -- external reset
+pragma target LVP      DISABLED  -- no low-voltage programming
+pragma target XINST    ENABLED   -- extended instruction set
+pragma target HFOFST   ENABLED   -- clock held off until hfintosc is stable
+pragma target DEBUG    DISABLED  -- background debugging
+pragma target CP0      DISABLED  -- code block 0 not protected
+pragma target CP1      DISABLED  -- code block 1 not protected
+pragma target CPB      DISABLED  -- bootblock code not write protected
+pragma target WRT0     DISABLED  -- table writeblock 0 not protected
+pragma target WRT1     DISABLED  -- table write block 1 not protected
+pragma target WRTB     DISABLED  -- bootblock not write protected
+pragma target WRTC     DISABLED  -- config not write protected
+pragma target EBTR0    DISABLED  -- table read block 0 not protected
+pragma target EBTR1    DISABLED  -- table read block 1 not protected
+pragma target EBTRB    DISABLED  -- boot block not protected
+-- ----------------------------------------------------------------------------
+
+enable_digital_io()              -- make all pins digital I/O
+include delay                    -- delay routines 
+
+-- ----------------------------------------------------------------------------
+-- port/pin map
+PORTA_direction = ALL_INPUT
+PORTB_direction = ALL_INPUT
+PORTC_direction = ALL_OUTPUT
+-- led pins
+var bit led_midi_out  is pin_C6
+var bit led_midi_in   is pin_C7
+-- ----------------------------------------------------------------------------
+-- setup the timer0_isr_interval library
+const word timer0_isr_rate = 1000  -- 1 kHz isr rate
+const DELAY_SLOTS = 1              -- support 1 delay at the same time
+include timer0_isr_interval        -- timer0 isr routines
+
+-- ----------------------------------------------------------------------------
+-- constants
+const word MIDI_LED_DELAY = 40     -- MIDI LED On, in ms
+
+-- ----------------------------------------------------------------------------
+include midiserial                 -- Serial UART routines
+include midiusb                    -- USB MIDI routines
+-- ----------------------------------------------------------------------------
+-- variables
+var byte data
+
+-- ----------------------------------------------------------------------------
+-- main program
+timer0_isr_init()  -- init timer0 isr
+
+forever loop
+
+	usbMidiFlush() -- usb tasks alive
+
+  	-- ----------------------------------------------------------------------
+  	-- slot led
+  	if (check_delay(0)) then
+    	set_delay(0, 1000 / MIDI_LED_DELAY)
+    	serialRefreshLeds()	
+  	end if
+
+  	-- ----------------------------------------------------------------------
+  	-- get MIDI data from uart (midi in) and send to usb
+	if (serialReadByte(data)) then
+		usbMidiWriteByte(data)
+	end if
+	
+  	-- ----------------------------------------------------------------------
+  	-- get MIDI data from usb and send to uart (midi out)
+	if (usbMidiReadByte(data)) then
+		serialWriteByte(data)
+	end if
+	
+end loop
